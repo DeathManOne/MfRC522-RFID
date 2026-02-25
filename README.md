@@ -35,8 +35,10 @@ void loop {
   int sak;
   std::string type;
   std::string status;
-  if (!_RFID->piccSelect(uid, sak, type, status))
+
+  if (!_RFID->piccSelect(uid, sak, type, status)) // ALWAYS PICC_TIMEOUT AT THE END
     { Serial.printf("NOT SELECTED with status: %s\n", status.c_str()); }
   else { Serial.println("SELECTED"); }
 }
 ```
+
