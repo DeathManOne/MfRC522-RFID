@@ -1,10 +1,10 @@
 #include "../include/mfrc522.h"
 using namespace MfRC522;
 
-driver::driver(int pinSDA, SPIClass &SPI) {
+driver::driver(int pinSDA, int pinRST, SPIClass &SPI) {
     this->_SPI = &SPI;
     this->_PIN_SDA = new int(pinSDA);
-    this->_SETTINGS = new SPISettings(1000000, MSBFIRST, SPI_MODE0);
+    this->_SETTINGS = new SPISettings(4000000u, MSBFIRST, SPI_MODE0);
 
     pinMode(*this->_PIN_SDA, OUTPUT);
     digitalWrite(*this->_PIN_SDA, HIGH);
@@ -53,8 +53,8 @@ int driver::_pcdInitialize(int antennaLevel) const {
     this->_spiWrite(MfRC522::RC_TX_MODE, 0x00);
     this->_spiWrite(MfRC522::RC_RX_MODE, 0x00);
     this->_spiWrite(MfRC522::RC_MOD_WIDTH, 0x26);
-    this->_spiWrite(MfRC522::RC_T_MOD, 0x8D);
-    this->_spiWrite(MfRC522::RC_T_PRESCALER, 0x3E);
+    this->_spiWrite(MfRC522::RC_T_MOD, 0x8D); // 0x8D | 0x80
+    this->_spiWrite(MfRC522::RC_T_PRESCALER, 0x3E); // 0x3E | 0xA9
     this->_spiWrite(MfRC522::RC_T_RELOAD_HIGH, 0x03);
     this->_spiWrite(MfRC522::RC_T_RELOAD_LOW, 0xE8);
     this->_spiWrite(MfRC522::RC_TX_ASK, 0x40);
@@ -107,10 +107,13 @@ bool driver::_crcCalculate(std::vector<int> data, std::vector<int> &crc) const {
 
 bool driver::_crcCheck(std::vector<int> data) const {
     std::vector<int> crc;
-    if (!this->_crcCalculate(data, crc))
+    std::vector<int> tmp = data;
+    tmp.resize(tmp.size() - 2);
+
+    if (!this->_crcCalculate(tmp, crc))
         { return false; }
-    if (data[-2] != crc[0]) { return false; }
-    if (data[-1] != crc[1]) { return false; }
+    if (data[data.size() - 2] != crc[0]) { return false; }
+    if (data[data.size() - 1] != crc[1]) { return false; }
     return true;
 }
 
@@ -130,7 +133,7 @@ std::string driver::_piccCommunication(int cmd, std::vector<int> data, int frami
         { this->_pcdBitmaskSet(MfRC522::RC_BIT_FRAMING, 0x80); }
 
     bool completed = false;
-    const uint32_t deadline = millis() + 2000;
+    const uint32_t deadline = millis() + 1000;
     do {
         int irq = this->_spiRead(MfRC522::RC_COM_IRQ);
         if ((irq & irqWait) != 0) {
@@ -167,7 +170,7 @@ std::string driver::_piccCommunication(int cmd, std::vector<int> data, int frami
 }
 
 bool driver::_piccHalt() const {
-    std::vector<int> buffer = {MfRC522::MF_HALT[0], MfRC522::MF_HALT[1]};
+    std::vector<int> buffer = MfRC522::MF_HALT;
     if (!this->_crcAppend(buffer))
         { return false; }
     this->_pcdBitmaskClear(MfRC522::RC_STATUS_2, 0x80);
@@ -330,6 +333,7 @@ bool driver::piccWaitTag(int &antennaLevel, int timeout) const {
     bool newCardPresent = false;
     const uint32_t deadline = millis() + (1000 * timeout);
     do {
+        this->_pcdInitialize(antennaLevel);
         this->_spiWrite(MfRC522::RC_COM_IRQ, 0x00);
         this->_spiWrite(MfRC522::RC_COM_I_EN, 0xA0);
         this->_spiWrite(MfRC522::RC_FIFO_DATA, 0x26);
@@ -394,16 +398,16 @@ bool driver::piccSelect(std::vector<int> &uid, int &sak, std::string &type, std:
         for (int i = 0; i <= 32; i++) {
             int txLastBits;
             if (levelKnownBits >= 32) {
-                if (buffer.size() > 6) { buffer.resize(6); } 
-                bool bufferDirty = buffer.size() != 6;
+                if (buffer.size() > 6) { buffer.resize(6); }
+                bool bufferDirty = (buffer.size() != 6);
                 bufferDirty |= std::any_of(buffer.begin(), buffer.end(), [](int byte) { return false; });
                 if (bufferDirty) {
                     buffer = {cascade};
                     levelKnownBits = 0;
                     continue;
                 }
+                int txLastBits = 0;
 
-                txLastBits = 0;
                 buffer[1] = 0x70;
                 if (buffer.size() < 7)
                     { buffer.push_back(buffer[2] ^ buffer[3] ^ buffer[4] ^ buffer[5]); }
@@ -413,7 +417,7 @@ bool driver::piccSelect(std::vector<int> &uid, int &sak, std::string &type, std:
                     return false;
                 }
             } else {
-                txLastBits = levelKnownBits % 8;
+                int txLastBits = levelKnownBits % 8;
                 int uidFullByte = levelKnownBits / 8;
                 int allFUllByte = 2 + uidFullByte;
 
@@ -422,18 +426,22 @@ bool driver::piccSelect(std::vector<int> &uid, int &sak, std::string &type, std:
                 else { buffer[1] = (allFUllByte << 4) + txLastBits; }
 
                 int bufferLength = allFUllByte + (txLastBits > 0 ? 1 : 0);
-                buffer.resize(bufferLength);
+                if (buffer.size() > bufferLength + 1)
+                    { buffer.resize(bufferLength + 1); }
             }
             int framingBit = (txLastBits << 4) + txLastBits;
             status = this->_piccCommunication(MfRC522::CMD_TRANSCEIVE, buffer, framingBit, false, data, validBits);
             if (status != "OK" && status != "COLLISION") { return false; }
-            if (data.size() == 0) {
+            if (data.empty()) {
                 status = "DATA_EMPTY";
                 return false;
             }
             if (levelKnownBits < 32) {
-                if (txLastBits != 0) { buffer[-1] |= data.front(); }
-                for (int d : data) { buffer.push_back(d); }
+                if (txLastBits != 0) {
+                    buffer.back() |= data.front();
+                    data.erase(data.begin());
+                }
+                buffer.insert(buffer.end(), data.begin(), data.end());
             }
             if (status == "COLLISION") {
                 int collision = this->_spiRead(MfRC522::RC_COLL);
@@ -450,7 +458,7 @@ bool driver::piccSelect(std::vector<int> &uid, int &sak, std::string &type, std:
                 }
                 
                 levelKnownBits = collisionPosition;
-                buffer[-1] |= 1 << ((levelKnownBits - 1) % 8);
+                buffer.back() |= 1 << ((levelKnownBits - 1) % 8);
             } else {
                 if (levelKnownBits >= 32) {
                     timeout = false;
@@ -680,5 +688,4 @@ bool driver::softPowerUp(int timeout) const {
         delay(100);
     } while (static_cast<uint32_t>(millis()) < deadline);
     return false;
-
 }
