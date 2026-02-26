@@ -422,7 +422,7 @@ bool driver::piccSelect(std::vector<int> &uid, int &sak, std::string &type, std:
                 else { buffer[1] = (allFUllByte << 4) + txLastBits; }
 
                 int bufferLength = allFUllByte + (txLastBits > 0 ? 1 : 0);
-                buffer.resize(bufferLength + 1);
+                buffer.resize(bufferLength);
             }
             int framingBit = (txLastBits << 4) + txLastBits;
             status = this->_piccCommunication(MfRC522::CMD_TRANSCEIVE, buffer, framingBit, false, data, validBits);
@@ -680,4 +680,5 @@ bool driver::softPowerUp(int timeout) const {
         delay(100);
     } while (static_cast<uint32_t>(millis()) < deadline);
     return false;
+
 }
