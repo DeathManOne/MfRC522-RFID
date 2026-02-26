@@ -1,12 +1,7 @@
-same code than [PiRC522](https://github.com/DeathManOne/PiRC522) but, don't know why, piccSelect = PICC_TIMEOUT (in _piccCommunication)
-## WORK
-Detection (piccWaitTag)
+same code than [PiRC522](https://github.com/DeathManOne/PiRC522) 
 
-## DOES NOT WORK
+# WORK IN PROGRESS
 Select (piccSelect)
-
-if you want help to me ... it will be with pleasure
-
 
 ## Initialize
 ```c++
@@ -36,9 +31,10 @@ void loop {
   std::string type;
   std::string status;
 
-  if (!_RFID->piccSelect(uid, sak, type, status)) // ALWAYS PICC_TIMEOUT AT THE END
+  if (!_RFID->piccSelect(uid, sak, type, status)) // SAK_ERROR | CRC_CHECK_ERROR
     { Serial.printf("NOT SELECTED with status: %s\n", status.c_str()); }
   else { Serial.println("SELECTED"); }
 }
 ```
+
 
