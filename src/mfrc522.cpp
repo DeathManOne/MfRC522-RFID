@@ -53,8 +53,8 @@ int driver::_pcdInitialize(int antennaLevel) const {
     this->_spiWrite(MfRC522::RC_TX_MODE, 0x00);
     this->_spiWrite(MfRC522::RC_RX_MODE, 0x00);
     this->_spiWrite(MfRC522::RC_MOD_WIDTH, 0x26);
-    this->_spiWrite(MfRC522::RC_T_MOD, 0x8D); // 0x8D | 0x80
-    this->_spiWrite(MfRC522::RC_T_PRESCALER, 0x3E); // 0x3E | 0xA9
+    this->_spiWrite(MfRC522::RC_T_MOD, 0x80); // 0x8D | 0x80
+    this->_spiWrite(MfRC522::RC_T_PRESCALER, 0xA9); // 0x3E | 0xA9
     this->_spiWrite(MfRC522::RC_T_RELOAD_HIGH, 0x03);
     this->_spiWrite(MfRC522::RC_T_RELOAD_LOW, 0xE8);
     this->_spiWrite(MfRC522::RC_TX_ASK, 0x40);
@@ -385,8 +385,8 @@ bool driver::piccSelect(std::vector<int> &uid, int &sak, std::string &type, std:
         MfRC522::MF_CL_2_ANTICOLLISION[0],
         MfRC522::MF_CL_3_ANTICOLLISION[0]
     };
-    this->_piccReset();
 
+    this->_piccReset();
     for (int cascade : cascades) {
         std::vector<int> buffer = {cascade};
         int levelKnownBits = 0;
@@ -396,7 +396,7 @@ bool driver::piccSelect(std::vector<int> &uid, int &sak, std::string &type, std:
         int validBits;
 
         for (int i = 0; i <= 32; i++) {
-            int txLastBits;
+            int txLastBits = 0;
             if (levelKnownBits >= 32) {
                 if (buffer.size() > 6) { buffer.resize(6); }
                 bool bufferDirty = (buffer.size() != 6);
@@ -406,7 +406,6 @@ bool driver::piccSelect(std::vector<int> &uid, int &sak, std::string &type, std:
                     levelKnownBits = 0;
                     continue;
                 }
-                int txLastBits = 0;
 
                 buffer[1] = 0x70;
                 if (buffer.size() < 7)
@@ -438,8 +437,8 @@ bool driver::piccSelect(std::vector<int> &uid, int &sak, std::string &type, std:
             }
             if (levelKnownBits < 32) {
                 if (txLastBits != 0) {
-                    buffer.back() |= data.front();
-                    data.erase(data.begin());
+                    data[0] |= buffer.back();
+                    buffer.pop_back();
                 }
                 buffer.insert(buffer.end(), data.begin(), data.end());
             }
