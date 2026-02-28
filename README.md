@@ -31,10 +31,11 @@ void loop {
   std::string type;
   std::string status;
 
-  if (!_RFID->piccSelect(uid, sak, type, status)) // SAK_ERROR | CRC_CHECK_ERROR
+  if (!_RFID->piccSelect(uid, sak, type, status))
     { Serial.printf("NOT SELECTED with status: %s\n", status.c_str()); }
   else { Serial.println("SELECTED"); }
 }
 ```
+
 
 
