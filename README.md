@@ -1,7 +1,7 @@
 same code than [PiRC522](https://github.com/DeathManOne/PiRC522) 
 
 # WORK IN PROGRESS
-Select (piccSelect)
+Select (_piccCommunication)
 
 ## Initialize
 ```c++
@@ -36,6 +36,7 @@ void loop {
   else { Serial.println("SELECTED"); }
 }
 ```
+
 
 
 
