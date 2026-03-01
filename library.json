@@ -1,0 +1,14 @@
+{
+  "name": "MfRC522-RFID",
+  "version": "2.1.0",
+  "license": "Unlicense",
+  "keywords": "rfid, mfrc522, mfrc, esp, spi, arduino",
+  "description": "Read and write on RFID card with mfrc522 driver",
+  "repository":
+  {
+    "type": "git",
+    "url": "https://github.com/DeathManOne/MfRC522-RFID.git"
+  },
+  "frameworks": "arduino",
+  "platforms": ["espressif32"]
+}
