@@ -2,6 +2,7 @@ same code than [PiRC522](https://github.com/DeathManOne/PiRC522)
 
 # WORK IN PROGRESS
 - **overloads methods**
+- comment public methods
 
 ## Initialize
 ```c++
@@ -36,6 +37,7 @@ void loop {
   else { Serial.println("SELECTED"); }
 }
 ```
+
 
 
 
