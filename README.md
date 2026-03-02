@@ -128,7 +128,7 @@ void loop {
     bool success = _RFID->MFRestore(address, result, status);
 ```
 #### **Transfer**
-Always use **mifareTransfer** after
+Always use **MFTransfer** after
 - **increment**
 - **decrement**
 - but not required after **restore**, it's already did in driver
@@ -175,3 +175,4 @@ Always use **mifareTransfer** after
 ```c++
     delete _RFID;
 ```
+
