@@ -54,16 +54,16 @@ void loop {
 ```
 ### **Dump** all datas
 ```c++
-    bool useKeyB = true; // optionnal | false = keyA | true = keyB
-    int sectorCount = 16; // optionnal
-    std::vector<std::string> datasFormated =_RFID->MFDump(uid, key, useKeyB, sectorCount);
-    for (std::string data : datasFormated)
+    bool useKeyB = true; // optional | false = keyA | true = keyB
+    int sectorCount = 16; // optional
+    std::vector<std::string> datasFormatted =_RFID->MFDump(uid, key, useKeyB, sectorCount);
+    for (std::string data : datasFormatted)
         { Serial.println(data.c_str()); }
 ```
 ### **Authentication**
 ```c++
     int sector = 3; // 0 to 15
-    bool useKeyB = false; // optionnal
+    bool useKeyB = false; // optional
     bool success = _RFID->MFAuthenticate(sector, key, uid, status, useKeyB);
 ```
 ### **Read**
@@ -91,7 +91,7 @@ void loop {
 ```c++
     int sector = 1;
     int block = 1;
-    int value = 0; // optionnal
+    int value = 0; // optional
     bool success = _RFID->MFFormatValueBlock(sector, block, status, initValue);
     // OR
     int address = 5; // 5 => sector 1 - block 1
@@ -101,7 +101,7 @@ void loop {
 ```c++
     int sector = 1;
     int block = 1;
-    int delta = 1; // optionnal | default delta is 1
+    int delta = 1; // optional | default delta is 1
     bool success = _RFID->MFDecrement(sector, block, status, delta);
     // OR
     int address = 5; // 5 => sector 1 - block 1
@@ -111,7 +111,7 @@ void loop {
 ```c++
     int sector = 1;
     int block = 1;
-    int delta = 1; // optionnal | default delta is 1
+    int delta = 1; // optional | default delta is 1
     bool success = _RFID->MFIncrement(sector, block, status, delta);
     // OR
     int address = 5; // 5 => sector 1 - block 1
@@ -121,7 +121,7 @@ void loop {
 ```c++
     int sector = 1;
     int block = 1;
-    int result; // value from restor will be appear here
+    int result; // value from restore will be appear here
     bool success = _RFID->MFRestore(sector, block, result, status);
     // OR
     int address = 5; // 5 => sector 1 - block 1
@@ -147,7 +147,7 @@ Always use **MFTransfer** after
     int antennalLevel = 4; // will be read but also be changed if needed by PCD
     _RFID->pcdAntennaLevel(antennalLevel);
 
-    bool enable = true; // optionnal
+    bool enable = true; // optional
     _RFID->pcdAntennaEnable(enable);
 ```
 #### **Soft power**
@@ -175,4 +175,5 @@ Always use **MFTransfer** after
 ```c++
     delete _RFID;
 ```
+
 
