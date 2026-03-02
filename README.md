@@ -135,7 +135,7 @@ Always use **MFTransfer** after
 ```c++
     int sector = 1;
     int block = 1;
-    int result; // value from restor will be appear here
+    int result; // value from restore will be appear here
     bool success = _RFID->MFTransfer(sector, block, result, status);
     // OR
     int address = 5; // 5 => sector 1 - block 1
@@ -175,5 +175,6 @@ Always use **MFTransfer** after
 ```c++
     delete _RFID;
 ```
+
 
 
