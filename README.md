@@ -18,6 +18,7 @@ I could not test those commands, because i do not have
 ```
 ## **INITIALIZE**
 ```c++
+#include <mfrc522.h>
 MfRC522::driver *_RFID;
 
 int RFID_PIN_SDA = 5;
@@ -175,6 +176,7 @@ Always use **MFTransfer** after
 ```c++
     delete _RFID;
 ```
+
 
 
 
