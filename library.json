@@ -1,6 +1,6 @@
 {
   "name": "MfRC522-RFID",
-  "version": "2.1.0",
+  "version": "2.1.3",
   "license": "Unlicense",
   "keywords": "rfid, mfrc522, mfrc, esp, spi, arduino",
   "description": "Read and write on RFID card with mfrc522 driver",

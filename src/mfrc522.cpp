@@ -53,8 +53,8 @@ void driver::_pcdInitialize(int &antennaLevel) const {
     this->_spiWrite(MfRC522::RC_TX_MODE, 0x00);
     this->_spiWrite(MfRC522::RC_RX_MODE, 0x00);
     this->_spiWrite(MfRC522::RC_MOD_WIDTH, 0x26);
-    this->_spiWrite(MfRC522::RC_T_MOD, 0x8D);
-    this->_spiWrite(MfRC522::RC_T_PRESCALER, 0x3E);
+    this->_spiWrite(MfRC522::RC_T_MOD, 0x80); // 0x8D | 0x80
+    this->_spiWrite(MfRC522::RC_T_PRESCALER, 0xA9); // 0x3E | 0xA9
     this->_spiWrite(MfRC522::RC_T_RELOAD_HIGH, 0x03);
     this->_spiWrite(MfRC522::RC_T_RELOAD_LOW, 0xE8);
     this->_spiWrite(MfRC522::RC_TX_ASK, 0x40);
@@ -154,7 +154,7 @@ std::string driver::_piccCommunication(int cmd, std::vector<int> buffers, int fr
         { this->_pcdBitmaskSet(MfRC522::RC_BIT_FRAMING, 0x80); }
 
     bool completed = false;
-    const uint32_t deadline = millis() + 1000;
+    const uint32_t deadline = millis() + 36;
     do {
         int irq = this->_spiRead(MfRC522::RC_COM_IRQ);
         if ((irq & irqWait) != 0) {
@@ -190,19 +190,21 @@ std::string driver::_piccCommunication(int cmd, std::vector<int> buffers, int fr
     return "OK";
 }
 
-bool driver::_piccHalt(std::string &status) const {
+bool driver::_piccHalt(std::string &status, bool withUnselect) const {
     status.clear();
 
     std::vector<int> buffers = MfRC522::MF_HALT;
-    if (!this->_crcAppend(buffers))
-        { return false; }
-    this->_pcdBitmaskClear(MfRC522::RC_STATUS_2, 0x80);
+    if (!this->_crcAppend(buffers)) {
+        status = "ERROR_CRC";
+        return false;
+    }
 
     int validBits;
     std::vector<int> datas;
     status = this->_piccCommunication(MfRC522::CMD_TRANSCEIVE, buffers, 0x00, false, datas, validBits);
 
-    this->piccUnselect();
+    if (withUnselect)
+        { this->piccUnselect(); }
     return status == "PICC_TIMEOUT" || status == "SOFT_TIMEOUT";
 }
 
@@ -250,14 +252,16 @@ std::string driver::_piccType(int sak) const {
     }
 }
 
-std::string driver::_MFTransceive(int buffer, bool acceptTimeout) const {
+std::string driver::_MFTransceive(int buffer, bool acceptTimeout, bool ignoreCrc) const {
     std::vector<int> buffers = {buffer};
-    return this->_MFTransceive(buffers, acceptTimeout);
+    return this->_MFTransceive(buffers, acceptTimeout, ignoreCrc);
 }
 
-std::string driver::_MFTransceive(std::vector<int> buffers, bool acceptTimeout) const {
-    if (!this->_crcAppend(buffers))
-        { return "CRC_ERROR"; }
+std::string driver::_MFTransceive(std::vector<int> buffers, bool acceptTimeout, bool ignoreCrc) const {
+    if (!ignoreCrc) {
+        if (!this->_crcAppend(buffers))
+            { return "ERROR_CRC"; }
+    }
     int validBits;
     std::vector<int> datas;
 
@@ -363,29 +367,17 @@ bool driver::_MFWriteTrailer(int sector, std::vector<int> datas, std::string &st
     return status == "OK";
 }
 
-std::string driver::_MFOpenBackdoor(bool maxTryPerUnbrickCode) const {
-    std::vector<std::vector<int>> unbrickCodes = {
-        {0x01,0x02,0x03,0x04,0x04,0x08,0x04,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00},
-        {0x01,0x23,0x45,0x67,0x00,0x08,0x04,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00},
-        {0x12,0x34,0x56,0x78,0x08,0x08,0x04,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00}
-    };
-    std::string status;
-    for (std::vector<int> unbrickCode : unbrickCodes) {
-        for (int passing = 0; passing < maxTryPerUnbrickCode; passing++) {
-            std::string status;
-            if (!this->_piccHalt(status))
-                { return "ERROR_HALT - " + status; }
+bool driver::_MFOpenBackdoor(std::string &status, bool withUnselect) const {
+    if (withUnselect)
+        { this->piccUnselect(); }
+    bool dontCare = this->_piccHalt(status, false);
 
-            status = this->_MFTransceive(MfRC522::MF_UID_PERSONALIZE);
-            if (status == "OK")
-                { return this->_MFTransceive(MfRC522::MF_SET_MOD_TYPE); }
-            if (passing >= maxTryPerUnbrickCode)
-                { break; }
-            if (this->MFWrite(0, unbrickCode, status))
-                { continue; }
-        }
-    }
-    return "UID_BRICKED";
+    status = this->_MFTransceive(MfRC522::MF_UID_PERSONALIZE, false, true);
+    if (status != "OK")
+        { return false; }
+
+    status = this->_MFTransceive(MfRC522::MF_SET_MOD_TYPE, false, true);
+    return status == "OK";
 }
 
 void driver::_softReset() const {
@@ -445,7 +437,7 @@ bool driver::piccWaitTag(int timeout, int &antennaLevel, std::string &status) co
 bool driver::piccReestablishCommunication(std::vector<int> uid, std::string &status) const {
     status.clear();
 
-    if (this->_piccHalt(status))
+    if (!this->_piccHalt(status))
         { return false; }
     if (!this->piccRequest(status, true))
         { return false; }
@@ -609,8 +601,16 @@ void driver::piccUnselect() const {
     this->_pcdBitmaskClear(MfRC522::RC_STATUS_2, 0x08);
 }
 
-bool driver::MFSevenByteUidFirstInit(std::string &status, int typeFn) const {
+bool driver::MFSevenByteUidFirstInit(std::vector<int> key, std::string &status, int typeFn) const {
     status.clear();
+
+    std::vector<int> uid;
+    int sak;
+    std::string type;
+    if (!this->piccSelect(uid, sak, type, status))
+        { return false; }
+    if (!this->MFAuthenticate(0, key, uid, status))
+        { return false; }
 
     std::vector<int> datas = {MfRC522::MF_UID_PERSONALIZE};
     switch (typeFn) {
@@ -634,13 +634,9 @@ bool driver::MFSevenByteUidFirstInit(std::string &status, int typeFn) const {
         status = "ERROR_TYPE_FN_NOT_FOUND";
         return false;
     }
-    if (!this->_crcAppend(datas)) {
-        status = "ERROR_CRC";
-        return false;
-    }
     status = this->_MFTransceive(datas);
     this->piccUnselect();
-    return status == "OK";
+    return status == "ACK_ERROR";
 }
 
 bool driver::MFAuthenticate(int sector, std::vector<int> keys, std::vector<int> uids, std::string &status, bool useKeyB) const {
@@ -802,7 +798,22 @@ bool driver::MFWrite(int address, std::vector<int> datas, std::string &status) c
     return status == "OK";
 }
 
-bool driver::MFChangeUid(int maxTryPerUnbrickCode, std::vector<int> datas, std::string &status) const {
+bool driver::MFUnbrickUid(std::string &status) const {
+    std::vector<std::vector<int>> unbrickCodes = {
+        {0x01,0x02,0x03,0x04,0x04,0x08,0x04,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00},
+        {0x01,0x23,0x45,0x67,0x00,0x08,0x04,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00},
+        {0x12,0x34,0x56,0x78,0x08,0x08,0x04,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00}
+    };
+    if (!this->_MFOpenBackdoor(status, false))
+        { return false; }
+    for (std::vector<int> unbrickCode : unbrickCodes) {
+        if (this->MFWrite(0, unbrickCode, status))
+            { return true; }
+    }
+    return false;
+}
+
+bool driver::MFChangeUid(std::vector<int> key, std::vector<int> datas, std::string &status) const {
     status.clear();
 
     if (datas.size() < 16) {
@@ -810,19 +821,24 @@ bool driver::MFChangeUid(int maxTryPerUnbrickCode, std::vector<int> datas, std::
         return false;
     } else { datas.resize(16); }
 
-    if (datas[4] != datas[0] ^ datas[1] ^ datas[2] ^ datas[3]) {
+    int bcc = datas[0] ^ datas[1] ^ datas[2] ^ datas[3];
+    if (datas[4] != bcc) {
         status = "ERROR_BCC";
         return false;
     }
-    
-    status = this->_MFOpenBackdoor(maxTryPerUnbrickCode);
-    if (status != "OK")
+
+    std::vector<int> uid;
+    int sak;
+    std::string type;
+    std::vector<int> data0;
+
+    if (!this->piccSelect(uid, sak, type, status))
         { return false; }
-    if (!this->MFWrite(0, datas, status))
+    if (!this->MFAuthenticate(0, key, uid, status))
         { return false; }
-    if (!this->_piccHalt(status))
-        { this->piccRequest(status, true); }
-    return true;
+    if (!this->_MFOpenBackdoor(status))
+        { return false; }
+    return this->MFWrite(0, datas, status);
 }
 
 bool driver::MFChangeTrailer(int sector, std::vector<int> keyA, std::vector<int> keyB, std::vector<int> accessBits, std::string &status) const {
@@ -883,6 +899,12 @@ std::vector<std::string> driver::MFDump(std::vector<int> uid, std::vector<int> k
         } else { result.push_back(std::to_string(sector) + "-" + std::to_string(block) + " (" + std::to_string(address) + ") [" + status + "]"); }
     }
     return result;
+}
+
+std::vector<std::string> driver::MFDumpReverse(std::vector<int> uid, std::vector<int> key, bool useKeyB, int sectorCount) const {
+    std::vector<std::string> datas = this->MFDump(uid, key, useKeyB, sectorCount);
+    std::reverse(datas.begin(), datas.end());
+    return datas;
 }
 
 void driver::softPowerDown() const {

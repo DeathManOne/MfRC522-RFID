@@ -114,17 +114,16 @@ namespace MfRC522 {
             bool _crcCheck(std::vector<int> datas) const;
             std::string _piccCommunication(int cmd, int buffer, int framingBit, bool checkCrc, std::vector<int> &datas, int &validBits) const;
             std::string _piccCommunication(int cmd, std::vector<int> buffers, int framingBit, bool checkCrc, std::vector<int> &datas, int &validBits) const;
-            bool _piccHalt(std::string &status) const;
+            bool _piccHalt(std::string &status, bool withUnselect = true) const;
             void _piccReset() const;
             std::string _piccType(int sak) const;
-            std::string _MFTransceive(int buffer, bool acceptTimeout = false) const;
-            std::string _MFTransceive(std::vector<int> buffers, bool acceptTimeout = false) const;
+            std::string _MFTransceive(int buffer, bool acceptTimeout = false, bool ignoreCrc = false) const;
+            std::string _MFTransceive(std::vector<int> buffers, bool acceptTimeout = false, bool ignoreCrc = false) const;
             bool _MFGetValue(int address, int &value, std::string &status) const;
             std::string _MFTwoStep(int cmd, int address, int value) const;
             bool _MFAccessBits(std::vector<int> accessBits, std::vector<int> &datas, std::string &status) const;
             bool _MFWriteTrailer(int sector, std::vector<int> datas, std::string &status) const;
-            /* /!\ NOT TESTED /!\ */
-            std::string _MFOpenBackdoor(bool maxTryPerUnbrickCode) const;
+            bool _MFOpenBackdoor(std::string &status, bool withUnselect = true) const;
             void _softReset() const;
             int _getBlockAddress(int sector, int block) const;
             void _getSectorBlock(int blockAddress, int &sector, int &block) const;
@@ -194,12 +193,13 @@ namespace MfRC522 {
             void piccUnselect() const;
 
             /**
-             * @brief /!\ NOT TESTED /!\ first ignition for tag with seven byte uid
+             * @brief first ignition for tag with seven byte uid
+             * @param key sector 0 key
              * @param status [out] log
              * @param typeFn (default: 1) FN type of the tag - datasheet - default option is 1 - between 0 and 3
              * @return true if success, otherwise false
              */
-            bool MFSevenByteUidFirstInit(std::string &status, int typeFn = 1) const;
+            bool MFSevenByteUidFirstInit(std::vector<int> key, std::string &status, int typeFn = 1) const;
 
             /**
              * @brief authenticate the sector you want to use
@@ -346,13 +346,20 @@ namespace MfRC522 {
             bool MFWrite(int address, std::vector<int> datas, std::string &status) const;
 
             /**
-             * @brief /!\ NOT TESTED /!\ change the uid of the tag
-             * @param maxTryPerUnbrickCode max try per code known
-             * @param data all data to store in uid address
+             * @brief make card reading again by reader
              * @param status [out] log
              * @return true if success, otherwise false
              */
-            bool MFChangeUid(int maxTryPerUnbrickCode, std::vector<int> datas, std::string &status) const;
+            bool MFUnbrickUid(std::string &status) const;
+
+            /**
+             * @brief change the uid of the tag
+             * @param key sector 0 key 
+             * @param datas all data to store in uid address
+             * @param status [out] log
+             * @return true if success, otherwise false
+             */
+            bool MFChangeUid(std::vector<int> key, std::vector<int> datas, std::string &status) const;
 
             /**
              * @brief change the trailer of the sector
@@ -366,7 +373,7 @@ namespace MfRC522 {
             bool MFChangeTrailer(int sector, std::vector<int> keyA, std::vector<int> keyB, std::vector<int> accessBits, std::string &status) const;
 
             /**
-             * @brief get all datas of the tag
+             * @brief get all datas of the tag from address 0 to end
              * @param uid id of the tag
              * @param key list of keyA or keyB
              * @param useKeyB (default: false) false for keyA | true for keyB
@@ -374,6 +381,16 @@ namespace MfRC522 {
              * @return list of string
              */
             std::vector<std::string> MFDump(std::vector<int> uid, std::vector<int> key, bool useKeyB = false, int sectorCount = 16) const;
+
+            /**
+             * @brief get all datas of the tag from end to address 0
+             * @param uid id of the tag
+             * @param key list of keyA or keyB
+             * @param useKeyB (default: false) false for keyA | true for keyB
+             * @param sectorCount (default: 16) number of count sector (usually 16)
+             * @return list of string
+             */
+            std::vector<std::string> MFDumpReverse(std::vector<int> uid, std::vector<int> key, bool useKeyB = false, int sectorCount = 16) const;
 
             /**
              * @brief shut down the UC
