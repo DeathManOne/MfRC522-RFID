@@ -1,5 +1,15 @@
 # Changelog
 
+## 3.0.1
+
+### Added
+
+- Add 13 standalone sketches for testing the reader and MIFARE Classic operations on Arduino ESP32.
+
+### Removed
+
+- Remove the test-only anticollision trace and its callback.
+
 ## 3.0.0
 
 ### Changed

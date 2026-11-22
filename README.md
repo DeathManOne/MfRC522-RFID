@@ -2,6 +2,7 @@
 MFRC522 RFID reader driver for the Arduino framework on ESP32.
 
 See the [changelog](CHANGELOG.md) for release notes.
+See the [example sketches](examples/README.md) for wiring and individual tests.
 
 ## License
 

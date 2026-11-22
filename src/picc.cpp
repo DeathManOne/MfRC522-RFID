@@ -28,10 +28,6 @@
 
 using namespace MfRC522;
 
-#ifdef MFRC522_TEST_TRACE_COLLISION
-void mfrc522TestRecordCollision(int position);
-#endif
-
 std::string driver::_piccCommunication(int cmd, const std::vector<int> &buffers, int framingBit, bool checkCrc, std::vector<int> &datas, int &validBits) const {
     datas.clear();
     validBits = 0;
@@ -325,9 +321,6 @@ bool driver::piccSelect(std::vector<int> &uid, int &sak, std::string &type, std:
                 buffers.resize(collisionByte + 1, 0);
                 buffers[collisionByte] = (buffers[collisionByte] & (collisionBit - 1)) | collisionBit;
                 levelKnownBits         = collisionPosition;
-#ifdef MFRC522_TEST_TRACE_COLLISION
-                mfrc522TestRecordCollision(collisionPosition);
-#endif
             } else {
                 if (levelKnownBits >= 32) {
                     timeout = false;
